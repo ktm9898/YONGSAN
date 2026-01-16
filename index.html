@@ -3,51 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>용산구 투자 분석 지도</title>
+    <title>용산구 지도</title>
+    
     <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=u5mtazxcnw"></script>
+    
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pretendard', sans-serif; }
         #map { width: 100%; height: 100vh; }
         
-/* 말풍선(정보창) 커스텀 스타일 개선 */
-.iw-container { 
-    padding: 18px; 
-    min-width: 220px; 
-    background-color: white; /* 투명도 제거, 흰색 배경 */
-    border: 1px solid #ddd;
-    border-radius: 12px; 
-    box-shadow: 0 4px 15px rgba(0,0,0,0.15); /* 부드러운 그림자 추가 */
-}
-.iw-title { 
-    font-size: 17px; 
-    font-weight: 800; 
-    color: #111; 
-    margin-bottom: 6px; 
-    display: block; 
-}
-.iw-desc { 
-    font-size: 13px; 
-    color: #777; 
-    margin-bottom: 14px; 
-}
-.iw-btn {
-    display: block;
-    text-align: center;
-    background-color: #03c75a;
-    color: white;
-    padding: 10px;
-    text-decoration: none;
-    font-size: 13px;
-    border-radius: 6px;
-    font-weight: 700;
-}
-        .iw-btn:hover { background-color: #02a64a; }
+        /* 3. 말풍선 크기 및 디자인 슬림화 */
+        .iw-container { 
+            padding: 12px;  /* 패딩 축소 (18px -> 12px) */
+            min-width: 180px; /* 최소 너비 축소 (220px -> 180px) */
+            background-color: white; 
+            border: 1px solid #eee;
+            border-radius: 8px; /* 둥근 정도 약간 축소 */
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); /* 그림자도 약간 부드럽게 */
+        }
+        .iw-title { 
+            font-size: 15px; /* 폰트 크기 약간 축소 */
+            font-weight: 700; 
+            color: #222; 
+            margin-bottom: 10px; /* 설명글이 빠져서 버튼과의 간격 조정 */
+            display: block;
+            text-align: center; /* 제목 가운데 정렬 */
+        }
+        /* .iw-desc 스타일은 더 이상 사용하지 않아 삭제함 */
+        .iw-btn {
+            display: block;
+            text-align: center;
+            background-color: #03c75a;
+            color: white;
+            padding: 8px 0; /* 버튼 패딩 축소 */
+            text-decoration: none;
+            font-size: 12px; /* 버튼 글씨 축소 */
+            border-radius: 4px;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
 <div id="map"></div>
 <script>
-    // 1. 구글 시트로 확보하신 좌표 데이터 (중략 - 기존 데이터를 여기에 붙여넣으세요)
+    // 1. 구글 시트로 확보하신 좌표 데이터 (여기에 전체 데이터를 다시 넣으세요)
     const myLocations = [
 { "title": "스미비 하츠", "lat": 37.5321161, "lng": 127.0056662 },
 { "title": "Karrie's Brunch & Bar", "lat": 37.539271, "lng": 126.9890486 },
@@ -820,40 +818,36 @@
         // ... (나머지 리스트들도 여기에 다 넣어주세요)
     ];
 
-// 2. 지도 생성 (첫 번째 데이터 중심)
-    var map = new naver.maps.Map('map', {
+var map = new naver.maps.Map('map', {
         center: new naver.maps.LatLng(myLocations[0].lat, myLocations[0].lng),
         zoom: 14
     });
 
-    // 3. 마커 및 정보창 생성 루프
     myLocations.forEach(function(loc) {
         var marker = new naver.maps.Marker({
             position: new naver.maps.LatLng(loc.lat, loc.lng),
             map: map,
             title: loc.title,
-            // 마커 애니메이션 효과 (선택사항)
-            animation: naver.maps.Animation.DROP
+            animation: naver.maps.Animation.DROP // 마커 떨어지는 효과 유지
         });
 
-        // 개선된 말풍선 디자인 및 네이버 지도 연결 버튼
+        // 2. 불필요한 설명 문구 제거 및 구조 단순화
         var infoContent = [
             '<div class="iw-container">',
             '   <span class="iw-title">' + loc.title + '</span>',
-            '   <p class="iw-desc">용산구 투자 분석 업체</p>',
+            // '<p class="iw-desc">용산구 투자 분석 업체</p>', <-- 이 줄을 삭제했습니다.
             '   <a href="https://map.naver.com/v5/search/' + encodeURIComponent(loc.title) + '" target="_blank" class="iw-btn">네이버 지도 상세보기</a>',
             '</div>'
         ].join('');
 
-var infowindow = new naver.maps.InfoWindow({
-    content: infoContent,
-    borderWidth: 0,
-    disableAnchor: false, // 다시 화살표를 표시하여 위치를 명확히 함
-    backgroundColor: "transparent", // 컨테이너 자체에 흰색을 줬으므로 투명 유지 혹은 삭제
-    pixelOffset: new naver.maps.Point(0, -10)
-});
+        var infowindow = new naver.maps.InfoWindow({
+            content: infoContent,
+            borderWidth: 0,
+            disableAnchor: false,
+            backgroundColor: "transparent",
+            pixelOffset: new naver.maps.Point(0, -5) // 위치 약간 조정
+        });
 
-        // 마커 클릭 시 정보창 열기
         naver.maps.Event.addListener(marker, "click", function() {
             if (infowindow.getMap()) {
                 infowindow.close();
