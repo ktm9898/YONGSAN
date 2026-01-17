@@ -4,26 +4,76 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>우리동네 맛집지도</title>
+    <!-- 네이버 지도 API (Key 유지) -->
     <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=u5mtazxcnw"></script>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pretendard', sans-serif; background: #f8f9fa; }
         #map { width: 100%; height: 100vh; }
         
-        .iw-container { padding: 12px; min-width: 170px; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.12); border: 1px solid #f0f0f0; }
-        .iw-category { font-size: 10px; color: #2563eb; font-weight: 700; background: #eff6ff; padding: 2px 6px; border-radius: 4px; margin-bottom: 6px; display: inline-block; }
-        .iw-title { font-size: 15px; font-weight: 700; color: #111; margin-bottom: 4px; display: block; }
-        .iw-address { font-size: 11px; color: #71717a; margin-bottom: 12px; line-height: 1.4; display: block; }
+        /* 정보창 디자인 슬림화 및 업종 강조 */
+        .iw-container { 
+            padding: 10px; 
+            min-width: 160px; 
+            max-width: 220px;
+            background: white; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+            border: 1px solid #f0f0f0;
+        }
+        .iw-category {
+            font-size: 10px;
+            color: #2563eb;
+            font-weight: 700;
+            background: #eff6ff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-bottom: 6px;
+            display: inline-block;
+        }
+        .iw-title { 
+            font-size: 14px; 
+            font-weight: 700; 
+            color: #111; 
+            margin-bottom: 4px; 
+            display: block;
+        }
+        .iw-address {
+            font-size: 11px;
+            color: #71717a;
+            margin-bottom: 12px;
+            line-height: 1.4;
+            display: block;
+        }
         .iw-btn-group { display: flex; gap: 6px; }
-        .iw-btn { flex: 1; text-align: center; color: white; padding: 8px 0; text-decoration: none; font-size: 11px; border-radius: 6px; font-weight: 600; cursor: pointer; border: none; transition: opacity 0.2s; }
-        .btn-visit { background-color: #3b82f6; }
-        .btn-cancel { background-color: #f59e0b; }
-        .btn-naver { background-color: #03c75a; }
+        .iw-btn {
+            flex: 1;
+            text-align: center;
+            color: white;
+            padding: 7px 0;
+            text-decoration: none;
+            font-size: 10.5px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: opacity 0.2s;
+        }
+        .iw-btn:active { opacity: 0.8; }
+        .btn-visit { background-color: #3b82f6; } /* 미방문 - 방문완료 체크 버튼 */
+        .btn-cancel { background-color: #f59e0b; } /* 방문완료 - 방문취소 버튼 */
+        .btn-naver { background-color: #03c75a; } /* 네이버 연결 - 네이버지도 버튼 */
 
-        #loading { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.9); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: #333; }
+        #loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.9); z-index: 10000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 14px; font-weight: 600; color: #333;
+        }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
+
     <div id="loading">
         <div style="width:32px; height:32px; border:3px solid #f3f3f3; border-top:3px solid #3b82f6; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:12px;"></div>
         데이터 동기화 중...
@@ -31,7 +81,7 @@
     <div id="map"></div>
 
     <script>
-        // 본인의 웹 앱 URL로 교체하세요
+        // 본인의 웹 앱 URL (사용자 제공 URL 유지)
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzcgQY3YHYbbMSyryMc4ukLsA9p64upvVY_xCotrStNJQVhhsdbD6YbxAgltlg8cYYZ/exec'; 
 
         var map;
@@ -45,7 +95,8 @@
             map = new naver.maps.Map('map', {
                 center: new naver.maps.LatLng(37.5321, 127.0056),
                 zoom: 14,
-                logoControl: false
+                logoControl: false,
+                mapDataControl: false
             });
             loadData();
         }
@@ -65,11 +116,12 @@
 
         function createMarker(loc) {
             const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
+            
             var marker = new naver.maps.Marker({
                 position: new naver.maps.LatLng(loc.Lat, loc.Lng),
                 map: map,
                 title: loc.Name,
-                animation: naver.maps.Animation.DROP,
+                // animation: naver.maps.Animation.DROP, // 드랍 효과 제거
                 icon: {
                     content: `
                         <div style="cursor:pointer;">
@@ -83,16 +135,19 @@
             });
 
             naver.maps.Event.addListener(marker, "click", function() {
+                // 업종(Category)이 있는 경우 배지를 표시합니다.
+                const categoryTag = loc.Category ? `<span class="iw-category">${loc.Category}</span>` : '';
+                
                 var infoContent = `
                     <div class="iw-container">
-                        ${loc.Category ? `<span class="iw-category">${loc.Category}</span>` : ''}
+                        ${categoryTag}
                         <span class="iw-title">${loc.Name}</span>
                         <span class="iw-address">${loc.Address || '주소 정보 없음'}</span>
                         <div class="iw-btn-group">
                             <button onclick="updateStatus('${loc.ID}', ${!isVisited})" class="iw-btn ${isVisited ? 'btn-cancel' : 'btn-visit'}">
-                                ${isVisited ? '취소' : '방문완료'}
+                                ${isVisited ? '방문취소' : '방문완료'}
                             </button>
-                            <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">지도</a>
+                            <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버지도</a>
                         </div>
                     </div>`;
                 infowindow.setContent(infoContent);
@@ -104,12 +159,14 @@
             document.getElementById('loading').style.display = 'flex';
             try {
                 await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ id: id, isVisited: nextStatus }) });
+                // 업데이트 후 자연스럽게 새로고침
                 setTimeout(() => location.reload(), 500);
             } catch (e) {
                 alert("기록 실패");
                 document.getElementById('loading').style.display = 'none';
             }
         }
+
         window.onload = initMap;
     </script>
 </body>
