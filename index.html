@@ -59,8 +59,8 @@
         }
         .iw-btn:active { opacity: 0.8; }
         .btn-visit { background-color: #3b82f6; } /* 미방문 */
-        .btn-cancel { background-color: #f59e0b; } /* 방문취소 */
-        .btn-naver { background-color: #03c75a; } /* 네이버지도 */
+        .btn-cancel { background-color: #f59e0b; } /* 방문완료 시 방문취소 버튼 */
+        .btn-naver { background-color: #03c75a; } /* 네이버지도 버튼 */
 
         #loading {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -86,7 +86,7 @@
         var infowindow = new naver.maps.InfoWindow({
             borderWidth: 0,
             backgroundColor: "transparent",
-            disableAnchor: true, // 꼬리표 제거로 클릭 간섭 최소화
+            disableAnchor: true, // 꼬리표 제거
             pixelOffset: new naver.maps.Point(0, -10)
         });
 
@@ -126,6 +126,7 @@
                 position: new naver.maps.LatLng(loc.Lat, loc.Lng),
                 map: map,
                 title: loc.Name,
+                zIndex: 100, // 마커가 정보창 레이어에 가려지지 않도록 설정
                 icon: {
                     content: `
                         <div style="cursor:pointer;">
@@ -139,31 +140,35 @@
             });
 
             naver.maps.Event.addListener(marker, "click", function() {
+                // 현재 정보창이 열려있는지 확인
                 const isOpen = infowindow.getMap();
                 const currentAnchor = infowindow.getAnchor();
 
                 // 1. 이미 열려있고 현재 클릭한 마커가 주인이라면 닫기 (토글)
                 if (isOpen && currentAnchor === marker) {
                     infowindow.close();
-                } else {
-                    // 2. 다른 마커 클릭 시 혹은 새로 열 때 내용 구성
-                    const categoryTag = loc.Category ? `<span class="iw-category">${loc.Category}</span>` : '';
-                    var infoContent = `
-                        <div class="iw-container">
-                            <span class="iw-title">${loc.Name}</span>
-                            ${categoryTag}
-                            <span class="iw-address">${loc.Address || '주소 정보 없음'}</span>
-                            <div class="iw-btn-group">
-                                <button onclick="updateStatus('${loc.ID}', ${!isVisited})" class="iw-btn ${isVisited ? 'btn-cancel' : 'btn-visit'}">
-                                    ${isVisited ? '방문취소' : '방문완료'}
-                                </button>
-                                <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버지도</a>
-                            </div>
-                        </div>`;
-                    
-                    infowindow.setContent(infoContent);
-                    infowindow.open(map, marker);
+                    return;
                 }
+
+                // 2. 다른 마커 클릭 시 혹은 새로 열 때: 기존 창을 확실히 닫고 새로 열기
+                infowindow.close();
+
+                const categoryTag = loc.Category ? `<span class="iw-category">${loc.Category}</span>` : '';
+                var infoContent = `
+                    <div class="iw-container">
+                        <span class="iw-title">${loc.Name}</span>
+                        ${categoryTag}
+                        <span class="iw-address">${loc.Address || '주소 정보 없음'}</span>
+                        <div class="iw-btn-group">
+                            <button onclick="updateStatus('${loc.ID}', ${!isVisited})" class="iw-btn ${isVisited ? 'btn-cancel' : 'btn-visit'}">
+                                ${isVisited ? '방문취소' : '방문완료'}
+                            </button>
+                            <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버지도</a>
+                        </div>
+                    </div>`;
+                
+                infowindow.setContent(infoContent);
+                infowindow.open(map, marker);
             });
         }
 
