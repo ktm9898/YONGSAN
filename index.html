@@ -122,25 +122,29 @@
         function createMarker(loc) {
             const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
             
+            // 마커 크기 축소 (기존 32x40 -> 24x30)
+            // 1. div 스타일 width/height 수정
+            // 2. svg width/height 수정
+            // 3. anchor 포인트 수정 (width의 절반 12, height 전체 30)
             var marker = new naver.maps.Marker({
                 position: new naver.maps.LatLng(loc.Lat, loc.Lng),
                 map: map,
                 title: loc.Name,
-                clickable: true, // 명시적으로 클릭 가능 설정
+                clickable: true, 
                 icon: {
-                    content: `<div style="width:32px;height:40px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
-                        <svg width="32" height="40" viewBox="0 0 32 40">
+                    content: `<div style="width:24px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                        <svg width="24" height="30" viewBox="0 0 32 40">
                             <path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 24 16 24s16-12 16-24c0-8.8-7.2-16-16-16z" fill="${isVisited ? '#10b981' : '#ef4444'}"/>
                             <circle cx="16" cy="16" r="6" fill="white"/>
                         </svg>
                     </div>`,
-                    anchor: new naver.maps.Point(16, 40)
+                    anchor: new naver.maps.Point(12, 30)
                 }
             });
 
-            // 클릭 이벤트 (단순화)
+            // 클릭 이벤트
             naver.maps.Event.addListener(marker, "click", function(e) {
-                console.log('Marker clicked:', loc.Name); // 디버깅용
+                console.log('Marker clicked:', loc.Name);
                 
                 infowindow.close();
 
