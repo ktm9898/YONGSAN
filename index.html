@@ -87,7 +87,8 @@
             borderWidth: 0,
             backgroundColor: "transparent",
             disableAnchor: true, // 꼬리표 제거
-            pixelOffset: new naver.maps.Point(0, -10)
+            pixelOffset: new naver.maps.Point(0, -10),
+            zIndex: 1000 // 정보창의 zIndex 설정
         });
 
         function initMap() {
@@ -126,16 +127,16 @@
                 position: new naver.maps.LatLng(loc.Lat, loc.Lng),
                 map: map,
                 title: loc.Name,
-                zIndex: 100, // 마커가 정보창 레이어에 가려지지 않도록 설정
+                zIndex: 2000, // 마커가 정보창보다 위에 오도록 설정
                 icon: {
                     content: `
-                        <div style="cursor:pointer;">
-                            <svg width="22" height="30" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <div style="cursor:pointer; position: relative; z-index: 2000; pointer-events: auto; width: 28px; height: 36px; display: flex; align-items: center; justify-content: center;">
+                            <svg width="22" height="30" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="pointer-events: none;">
                                 <path d="M12 0C5.37 0 0 5.37 0 12C0 21 12 32 12 32C12 32 24 21 24 12C24 5.37 18.63 0 12 0Z" fill="${isVisited ? '#10b981' : '#ef4444'}"/>
                                 <circle cx="12" cy="12" r="4.5" fill="white"/>
                             </svg>
                         </div>`,
-                    anchor: new naver.maps.Point(11, 30)
+                    anchor: new naver.maps.Point(14, 36)
                 }
             });
 
