@@ -136,10 +136,17 @@
             });
 
             naver.maps.Event.addListener(marker, "click", function() {
-                // 열려있으면 닫고, 닫혀있으면 여는 토글 로직
-                if (infowindow.getMap() && infowindow.getAnchor() === marker) {
+                // 현재 정보창 상태 확인
+                const isOpen = infowindow.getMap();
+                const currentAnchor = infowindow.getAnchor();
+
+                if (isOpen && currentAnchor === marker) {
+                    // 동일 마커 클릭 시 닫기
                     infowindow.close();
                 } else {
+                    // 다른 마커 클릭 시 혹은 새로 열 때: 일단 닫고 새 내용으로 열기
+                    infowindow.close(); 
+                    
                     const categoryTag = loc.Category ? `<span class="iw-category">${loc.Category}</span>` : '';
                     var infoContent = `
                         <div class="iw-container">
