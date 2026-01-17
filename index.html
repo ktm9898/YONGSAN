@@ -86,9 +86,8 @@
         var infowindow = new naver.maps.InfoWindow({
             borderWidth: 0,
             backgroundColor: "transparent",
-            disableAnchor: true, // 꼬리표 제거
-            pixelOffset: new naver.maps.Point(0, -10),
-            zIndex: 1000 // 정보창의 zIndex 설정
+            disableAnchor: true,
+            pixelOffset: new naver.maps.Point(0, -10)
         });
 
         function initMap() {
@@ -127,31 +126,22 @@
                 position: new naver.maps.LatLng(loc.Lat, loc.Lng),
                 map: map,
                 title: loc.Name,
-                zIndex: 2000, // 마커가 정보창보다 위에 오도록 설정
+                clickable: true, // 명시적으로 클릭 가능 설정
                 icon: {
-                    content: `
-                        <div style="cursor:pointer; position: relative; z-index: 2000; pointer-events: auto; width: 28px; height: 36px; display: flex; align-items: center; justify-content: center;">
-                            <svg width="22" height="30" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="pointer-events: none;">
-                                <path d="M12 0C5.37 0 0 5.37 0 12C0 21 12 32 12 32C12 32 24 21 24 12C24 5.37 18.63 0 12 0Z" fill="${isVisited ? '#10b981' : '#ef4444'}"/>
-                                <circle cx="12" cy="12" r="4.5" fill="white"/>
-                            </svg>
-                        </div>`,
-                    anchor: new naver.maps.Point(14, 36)
+                    content: `<div style="width:32px;height:40px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                        <svg width="32" height="40" viewBox="0 0 32 40">
+                            <path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 24 16 24s16-12 16-24c0-8.8-7.2-16-16-16z" fill="${isVisited ? '#10b981' : '#ef4444'}"/>
+                            <circle cx="16" cy="16" r="6" fill="white"/>
+                        </svg>
+                    </div>`,
+                    anchor: new naver.maps.Point(16, 40)
                 }
             });
 
-            naver.maps.Event.addListener(marker, "click", function() {
-                // 현재 정보창이 열려있는지 확인
-                const isOpen = infowindow.getMap();
-                const currentAnchor = infowindow.getAnchor();
-
-                // 1. 이미 열려있고 현재 클릭한 마커가 주인이라면 닫기 (토글)
-                if (isOpen && currentAnchor === marker) {
-                    infowindow.close();
-                    return;
-                }
-
-                // 2. 다른 마커 클릭 시 혹은 새로 열 때: 기존 창을 확실히 닫고 새로 열기
+            // 클릭 이벤트 (단순화)
+            naver.maps.Event.addListener(marker, "click", function(e) {
+                console.log('Marker clicked:', loc.Name); // 디버깅용
+                
                 infowindow.close();
 
                 const categoryTag = loc.Category ? `<span class="iw-category">${loc.Category}</span>` : '';
