@@ -10,6 +10,14 @@
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pretendard', sans-serif; background: #f8f9fa; }
         #map { width: 100%; height: 100vh; }
         
+        /* [핵심] 정보창 컨테이너가 다른 마커를 가려 클릭을 방해하는 현상 해결 */
+        .naver-maps-infowindow { 
+            pointer-events: none !important; 
+            background: transparent !important; 
+            border: none !important; 
+            box-shadow: none !important; 
+        }
+
         /* 정보창 디자인 슬림화 및 레이아웃 최적화 */
         .iw-container { 
             padding: 12px; 
@@ -17,10 +25,10 @@
             max-width: 220px;
             background: white; 
             border-radius: 12px; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-            border: 1px solid #eee;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+            border: 1px solid #f0f0f0;
+            pointer-events: auto; /* 내용물(버튼 등)은 다시 클릭 가능하게 설정 */
         }
-
         .iw-title { 
             font-size: 15px; 
             font-weight: 700; 
@@ -28,7 +36,7 @@
             margin-bottom: 2px; 
             display: block;
         }
-        /* 업종 스타일 */
+        /* 업종 스타일: 이름과 주소 사이 적절한 크기 */
         .iw-category {
             font-size: 11px;
             color: #2563eb; 
@@ -58,9 +66,9 @@
             transition: opacity 0.2s;
         }
         .iw-btn:active { opacity: 0.8; }
-        .btn-visit { background-color: #3b82f6; } 
-        .btn-cancel { background-color: #f59e0b; } 
-        .btn-naver { background-color: #03c75a; } 
+        .btn-visit { background-color: #3b82f6; } /* 미방문 - 방문완료 체크 버튼 */
+        .btn-cancel { background-color: #f59e0b; } /* 방문완료 - 방문취소 버튼 */
+        .btn-naver { background-color: #03c75a; } /* 네이버 연결 - 네이버지도 버튼 */
 
         #loading {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -85,9 +93,9 @@
         var map;
         var infowindow = new naver.maps.InfoWindow({
             borderWidth: 0,
-            disableAnchor: true, 
             backgroundColor: "transparent",
-            pixelOffset: new naver.maps.Point(0, -15) // 정보창을 마커 위로 적절히 띄워 클릭 간섭 방지
+            disableAnchor: true, // 꼬리표 제거로 클릭 간섭 최소화
+            pixelOffset: new naver.maps.Point(0, -10)
         });
 
         function initMap() {
@@ -98,7 +106,7 @@
                 mapDataControl: false
             });
             
-            // 지도 빈 곳 클릭 시 정보창 닫기
+            // 지도 빈 곳 클릭 시 상세창 닫기
             naver.maps.Event.addListener(map, "click", function() {
                 infowindow.close();
             });
@@ -139,16 +147,17 @@
             });
 
             naver.maps.Event.addListener(marker, "click", function() {
+                // 현재 정보창이 열려있는지, 그리고 그 주인이 현재 클릭한 마커인지 확인
                 const isOpen = infowindow.getMap();
                 const currentAnchor = infowindow.getAnchor();
 
-                // 1. 이미 열려있고 같은 마커를 눌렀다면 닫기 (토글)
                 if (isOpen && currentAnchor === marker) {
+                    // 동일한 마커를 다시 눌렀을 때 닫기 (토글)
                     infowindow.close();
                     return;
                 }
 
-                // 2. 상세창 내용 구성
+                // 다른 마커를 눌렀을 때 혹은 새로 열 때 내용 구성
                 const categoryTag = loc.Category ? `<span class="iw-category">${loc.Category}</span>` : '';
                 var infoContent = `
                     <div class="iw-container">
