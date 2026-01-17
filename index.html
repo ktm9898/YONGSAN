@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>우리동네 맛집지도</title>
+    <title>용산구 창업 점포 지도</title>
     <!-- 네이버 지도 API (Key 유지) -->
     <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=u5mtazxcnw"></script>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pretendard', sans-serif; background: #f8f9fa; }
         #map { width: 100%; height: 100vh; }
         
-        /* 정보창 디자인 슬림화 및 레이아웃 최적화 */
+        /* 정보창 디자인 */
         .iw-container { 
             padding: 12px; 
             min-width: 170px; 
@@ -20,63 +20,52 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.12);
             border: 1px solid #f0f0f0;
         }
-
-        .iw-title { 
-            font-size: 15px; 
-            font-weight: 700; 
-            color: #111; 
-            margin-bottom: 2px; 
-            display: block;
-        }
-        /* 업종 스타일: 이름과 주소 사이 */
-        .iw-category {
-            font-size: 11px;
-            color: #2563eb; 
-            font-weight: 600;
-            margin-bottom: 4px;
-            display: block;
-        }
-        .iw-address {
-            font-size: 11px;
-            color: #71717a;
-            margin-bottom: 12px;
-            line-height: 1.4;
-            display: block;
-        }
+        .iw-title { font-size: 15px; font-weight: 700; color: #111; margin-bottom: 2px; display: block; }
+        .iw-category { font-size: 11px; color: #2563eb; font-weight: 600; margin-bottom: 4px; display: block; }
+        .iw-address { font-size: 11px; color: #71717a; margin-bottom: 12px; line-height: 1.4; display: block; }
         .iw-btn-group { display: flex; gap: 6px; }
         .iw-btn {
-            flex: 1;
-            text-align: center;
-            color: white;
-            padding: 7px 0;
-            text-decoration: none;
-            font-size: 10.5px;
-            border-radius: 6px;
-            font-weight: 600;
-            cursor: pointer;
-            border: none;
-            transition: opacity 0.2s;
+            flex: 1; text-align: center; color: white; padding: 7px 0;
+            text-decoration: none; font-size: 10.5px; border-radius: 6px;
+            font-weight: 600; cursor: pointer; border: none; transition: opacity 0.2s;
         }
         .iw-btn:active { opacity: 0.8; }
-        .btn-visit { background-color: #3b82f6; } /* 미방문 */
-        .btn-cancel { background-color: #f59e0b; } /* 방문완료 시 방문취소 버튼 */
-        .btn-naver { background-color: #03c75a; } /* 네이버지도 버튼 */
+        .btn-visit { background-color: #3b82f6; } 
+        .btn-cancel { background-color: #f59e0b; } 
+        .btn-naver { background-color: #03c75a; } 
 
-        #loading {
+        /* 초기 로딩 화면 (전체 화면 덮음) */
+        #loading-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.9); z-index: 10000;
+            background: rgba(255,255,255,0.95); z-index: 10000;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             font-size: 14px; font-weight: 600; color: #333;
+            transition: opacity 0.3s;
         }
+
+        /* 데이터 저장 중 알림 (토스트 메시지) */
+        #toast {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.7); color: white; padding: 10px 20px;
+            border-radius: 20px; font-size: 13px; z-index: 9999;
+            opacity: 0; transition: opacity 0.3s; pointer-events: none;
+        }
+        #toast.show { opacity: 1; }
+
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-    <div id="loading">
+    <!-- 초기 데이터 로딩용 화면 -->
+    <div id="loading-screen">
         <div style="width:32px; height:32px; border:3px solid #f3f3f3; border-top:3px solid #3b82f6; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:12px;"></div>
-        데이터 동기화 중...
+        맛집 데이터를 불러오는 중...
     </div>
+
+    <!-- 저장 상태 알림용 토스트 -->
+    <div id="toast">저장 중...</div>
+
     <div id="map"></div>
 
     <script>
@@ -84,21 +73,19 @@
 
         var map;
         var infowindow = new naver.maps.InfoWindow({
-            borderWidth: 0,
-            backgroundColor: "transparent",
-            disableAnchor: true,
-            pixelOffset: new naver.maps.Point(0, -10)
+            borderWidth: 0, backgroundColor: "transparent", disableAnchor: true, pixelOffset: new naver.maps.Point(0, -10)
         });
+
+        // 로컬 데이터 관리용 (새로고침 없이 즉시 업데이트하기 위함)
+        var markersMap = {}; // ID -> Marker 객체
+        var locationsMap = {}; // ID -> 데이터 객체
 
         function initMap() {
             map = new naver.maps.Map('map', {
                 center: new naver.maps.LatLng(37.5321, 127.0056),
-                zoom: 14,
-                logoControl: false,
-                mapDataControl: false
+                zoom: 14, logoControl: false, mapDataControl: false
             });
             
-            // 지도 빈 곳 클릭 시 상세창 닫기
             naver.maps.Event.addListener(map, "click", function() {
                 infowindow.close();
             });
@@ -110,72 +97,125 @@
             try {
                 const response = await fetch(GOOGLE_SCRIPT_URL);
                 const locations = await response.json();
-                document.getElementById('loading').style.display = 'none';
+                
+                // 로딩 화면 숨기기
+                const loadingScreen = document.getElementById('loading-screen');
+                loadingScreen.style.opacity = '0';
+                setTimeout(() => loadingScreen.style.display = 'none', 300);
+
                 locations.forEach(loc => {
-                    if(loc.Lat && loc.Lng) createMarker(loc);
+                    if(loc.Lat && loc.Lng) {
+                        createMarker(loc);
+                    }
                 });
             } catch (e) {
-                document.getElementById('loading').innerText = "데이터 로드 실패";
+                document.getElementById('loading-screen').innerText = "데이터 로드 실패";
             }
         }
 
+        // 아이콘 HTML 생성 도우미 함수
+        function getIconHtml(isVisited) {
+            const color = isVisited ? '#10b981' : '#ef4444'; // 초록 vs 빨강
+            return `<div style="width:24px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                        <svg width="24" height="30" viewBox="0 0 32 40">
+                            <path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 24 16 24s16-12 16-24c0-8.8-7.2-16-16-16z" fill="${color}"/>
+                            <circle cx="16" cy="16" r="6" fill="white"/>
+                        </svg>
+                    </div>`;
+        }
+
+        // 정보창 HTML 생성 도우미 함수
+        function getInfoWindowHtml(loc) {
+            const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
+            const categoryTag = loc.Category ? `<span class="iw-category">${loc.Category}</span>` : '';
+            
+            return `
+                <div class="iw-container">
+                    <span class="iw-title">${loc.Name}</span>
+                    ${categoryTag}
+                    <span class="iw-address">${loc.Address || '주소 정보 없음'}</span>
+                    <div class="iw-btn-group">
+                        <button onclick="updateStatus('${loc.ID}', ${!isVisited})" class="iw-btn ${isVisited ? 'btn-cancel' : 'btn-visit'}">
+                            ${isVisited ? '방문취소' : '방문완료'}
+                        </button>
+                        <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버지도</a>
+                    </div>
+                </div>`;
+        }
+
         function createMarker(loc) {
+            // 데이터 맵에 저장
+            locationsMap[loc.ID] = loc;
+
             const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
             
-            // 마커 크기 축소 (기존 32x40 -> 24x30)
-            // 1. div 스타일 width/height 수정
-            // 2. svg width/height 수정
-            // 3. anchor 포인트 수정 (width의 절반 12, height 전체 30)
             var marker = new naver.maps.Marker({
                 position: new naver.maps.LatLng(loc.Lat, loc.Lng),
                 map: map,
                 title: loc.Name,
                 clickable: true, 
                 icon: {
-                    content: `<div style="width:24px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
-                        <svg width="24" height="30" viewBox="0 0 32 40">
-                            <path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 24 16 24s16-12 16-24c0-8.8-7.2-16-16-16z" fill="${isVisited ? '#10b981' : '#ef4444'}"/>
-                            <circle cx="16" cy="16" r="6" fill="white"/>
-                        </svg>
-                    </div>`,
+                    content: getIconHtml(isVisited),
                     anchor: new naver.maps.Point(12, 30)
                 }
             });
 
-            // 클릭 이벤트
-            naver.maps.Event.addListener(marker, "click", function(e) {
-                console.log('Marker clicked:', loc.Name);
-                
-                infowindow.close();
+            // 마커 맵에 저장 (나중에 업데이트할 때 찾기 위함)
+            markersMap[loc.ID] = marker;
 
-                const categoryTag = loc.Category ? `<span class="iw-category">${loc.Category}</span>` : '';
-                var infoContent = `
-                    <div class="iw-container">
-                        <span class="iw-title">${loc.Name}</span>
-                        ${categoryTag}
-                        <span class="iw-address">${loc.Address || '주소 정보 없음'}</span>
-                        <div class="iw-btn-group">
-                            <button onclick="updateStatus('${loc.ID}', ${!isVisited})" class="iw-btn ${isVisited ? 'btn-cancel' : 'btn-visit'}">
-                                ${isVisited ? '방문취소' : '방문완료'}
-                            </button>
-                            <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버지도</a>
-                        </div>
-                    </div>`;
-                
-                infowindow.setContent(infoContent);
+            naver.maps.Event.addListener(marker, "click", function(e) {
+                // 클릭 시점의 최신 데이터로 정보창 내용 생성
+                const currentLoc = locationsMap[loc.ID];
+                infowindow.setContent(getInfoWindowHtml(currentLoc));
                 infowindow.open(map, marker);
             });
         }
 
+        // 상태 업데이트 (Optimistic UI 적용: 화면 먼저 변경 -> 서버 전송)
         async function updateStatus(id, nextStatus) {
-            document.getElementById('loading').style.display = 'flex';
-            try {
-                await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify({ id: id, isVisited: nextStatus }) });
-                setTimeout(() => location.reload(), 500);
-            } catch (e) {
-                alert("기록 실패");
-                document.getElementById('loading').style.display = 'none';
+            const loc = locationsMap[id];
+            if (!loc) return;
+
+            // 1. 화면 즉시 변경 (사용자 대기 시간 0초)
+            loc.IsVisited = nextStatus ? 'TRUE' : 'FALSE'; // 로컬 데이터 업데이트
+            
+            // 마커 아이콘 색상 변경
+            const marker = markersMap[id];
+            if (marker) {
+                marker.setIcon({
+                    content: getIconHtml(nextStatus),
+                    anchor: new naver.maps.Point(12, 30)
+                });
             }
+
+            // 열려있는 정보창 내용 갱신 (버튼 상태 변경)
+            infowindow.setContent(getInfoWindowHtml(loc));
+
+            // 2. 백그라운드 서버 전송 및 알림 표시
+            showToast("변경사항을 저장 중입니다...");
+
+            try {
+                await fetch(GOOGLE_SCRIPT_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify({ id: id, isVisited: nextStatus }) 
+                });
+                showToast("저장이 완료되었습니다!");
+            } catch (e) {
+                showToast("저장에 실패했습니다. 다시 시도해주세요.");
+                // 실패 시 원래대로 되돌리는 로직이 필요하다면 여기에 추가
+                console.error(e);
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.classList.add('show');
+            
+            // 2초 후 사라짐 (기존 타이머가 있다면 취소할 수도 있지만 단순화함)
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
         }
 
         window.onload = initMap;
