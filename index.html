@@ -19,7 +19,17 @@
             border-radius: 12px; 
             box-shadow: 0 4px 20px rgba(0,0,0,0.12);
             border: 1px solid #f0f0f0;
+            pointer-events: auto; /* 내용물(버튼 등)은 클릭 가능하게 설정 */
         }
+
+        /* [핵심] 상세창 주변의 투명한 빈 공간이 다른 마커 클릭을 방해하지 않도록 처리 */
+        .naver-maps-infowindow { 
+            pointer-events: none !important; 
+            border: 0 !important; 
+            background-color: transparent !important; 
+            box-shadow: none !important;
+        }
+
         .iw-title { 
             font-size: 15px; 
             font-weight: 700; 
@@ -57,9 +67,9 @@
             transition: opacity 0.2s;
         }
         .iw-btn:active { opacity: 0.8; }
-        .btn-visit { background-color: #3b82f6; } /* 미방문 - 방문완료 체크 버튼 */
-        .btn-cancel { background-color: #f59e0b; } /* 방문완료 - 방문취소 버튼 */
-        .btn-naver { background-color: #03c75a; } /* 네이버 연결 - 네이버지도 버튼 */
+        .btn-visit { background-color: #3b82f6; } /* 미방문 */
+        .btn-cancel { background-color: #f59e0b; } /* 방문취소 */
+        .btn-naver { background-color: #03c75a; } /* 네이버지도 */
 
         #loading {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -85,6 +95,7 @@
         var infowindow = new naver.maps.InfoWindow({
             borderWidth: 0,
             backgroundColor: "transparent",
+            disableAnchor: true, // 꼬리표를 제거하여 영역 간섭 최소화
             pixelOffset: new naver.maps.Point(0, -10)
         });
 
@@ -96,6 +107,7 @@
                 mapDataControl: false
             });
             
+            // 지도 빈 곳 클릭 시 상세창 닫기
             naver.maps.Event.addListener(map, "click", function() {
                 infowindow.close();
             });
@@ -136,15 +148,14 @@
             });
 
             naver.maps.Event.addListener(marker, "click", function() {
-                // 현재 정보창 상태 확인
                 const isOpen = infowindow.getMap();
                 const currentAnchor = infowindow.getAnchor();
 
+                // 1. 이미 열려있고 현재 클릭한 마커가 주인이라면 닫기 (토글)
                 if (isOpen && currentAnchor === marker) {
-                    // 동일 마커 클릭 시 닫기
                     infowindow.close();
                 } else {
-                    // 다른 마커 클릭 시 혹은 새로 열 때: 일단 닫고 새 내용으로 열기
+                    // 2. 닫혀있거나 다른 마커를 눌렀다면: 일단 닫고 새 정보로 열기
                     infowindow.close(); 
                     
                     const categoryTag = loc.Category ? `<span class="iw-category">${loc.Category}</span>` : '';
