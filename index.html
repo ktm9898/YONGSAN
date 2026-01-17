@@ -86,7 +86,7 @@
         var infowindow = new naver.maps.InfoWindow({
             borderWidth: 0,
             backgroundColor: "transparent",
-            pixelOffset: new naver.maps.Point(0, -10)
+            pixelOffset: new naver.maps.Point(0, -35) // 마커 높이(30px)보다 높게 설정하여 겹침 방지
         });
 
         function initMap() {
@@ -96,6 +96,12 @@
                 logoControl: false,
                 mapDataControl: false
             });
+            
+            // 지도 배경 클릭 시 상세창 닫기 (사용 편의성)
+            naver.maps.Event.addListener(map, "click", function() {
+                infowindow.close();
+            });
+
             loadData();
         }
 
@@ -132,14 +138,14 @@
             });
 
             naver.maps.Event.addListener(marker, "click", function() {
-                // 토글 기능: 정보창이 열려있고, 클릭한 마커가 현재 정보창의 마커와 같다면 닫기
+                // 이미 열려있는 상세창이 있고, 그 주인이 클릭한 마커와 같다면 닫기
                 if (infowindow.getMap() && infowindow.getAnchor() === marker) {
                     infowindow.close();
                     return;
                 }
 
+                // 정보창 내용 구성
                 const categoryTag = loc.Category ? `<span class="iw-category">${loc.Category}</span>` : '';
-                
                 var infoContent = `
                     <div class="iw-container">
                         <span class="iw-title">${loc.Name}</span>
@@ -152,6 +158,7 @@
                             <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버지도</a>
                         </div>
                     </div>`;
+                
                 infowindow.setContent(infoContent);
                 infowindow.open(map, marker);
             });
