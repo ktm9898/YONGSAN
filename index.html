@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>용산구 창업 점포</title>
+    <title>용산구 창업 점포 지도</title>
     <!-- 네이버 지도 API (Key 유지) -->
     <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=u5mtazxcnw"></script>
     <style>
@@ -19,7 +19,17 @@
             border-radius: 12px; 
             box-shadow: 0 4px 20px rgba(0,0,0,0.12);
             border: 1px solid #f0f0f0;
+            pointer-events: auto; /* 내용물은 클릭 가능하게 설정 */
         }
+
+        /* 상세창 컨테이너가 다른 마커를 가려 클릭을 방해하는 현상 방지 */
+        .naver-maps-infowindow { 
+            pointer-events: none; 
+            background: transparent !important; 
+            border: none !important; 
+            box-shadow: none !important; 
+        }
+
         .iw-title { 
             font-size: 15px; 
             font-weight: 700; 
@@ -138,11 +148,17 @@
             });
 
             naver.maps.Event.addListener(marker, "click", function() {
-                // 이미 열려있는 상세창이 있고, 그 주인이 클릭한 마커와 같다면 닫기
-                if (infowindow.getMap() && infowindow.getAnchor() === marker) {
+                const isOpen = infowindow.getMap(); // 정보창이 열려있는지 확인
+                const currentAnchor = infowindow.getAnchor(); // 현재 열린 정보창의 마커 확인
+
+                // 이미 이 마커의 상세창이 열려있다면 닫기 (토글)
+                if (isOpen && currentAnchor === marker) {
                     infowindow.close();
                     return;
                 }
+
+                // 다른 마커가 클릭되었다면 기존 창을 닫고 새로 열기
+                infowindow.close();
 
                 // 정보창 내용 구성
                 const categoryTag = loc.Category ? `<span class="iw-category">${loc.Category}</span>` : '';
