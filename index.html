@@ -19,15 +19,6 @@
             border-radius: 12px; 
             box-shadow: 0 4px 20px rgba(0,0,0,0.12);
             border: 1px solid #f0f0f0;
-            pointer-events: auto; /* 내용물(버튼 등)은 클릭 가능하게 설정 */
-        }
-
-        /* [핵심] 상세창 주변의 투명한 빈 공간이 다른 마커 클릭을 방해하지 않도록 처리 */
-        .naver-maps-infowindow { 
-            pointer-events: none !important; 
-            border: 0 !important; 
-            background-color: transparent !important; 
-            box-shadow: none !important;
         }
 
         .iw-title { 
@@ -95,7 +86,7 @@
         var infowindow = new naver.maps.InfoWindow({
             borderWidth: 0,
             backgroundColor: "transparent",
-            disableAnchor: true, // 꼬리표를 제거하여 영역 간섭 최소화
+            disableAnchor: true, // 꼬리표 제거로 클릭 간섭 최소화
             pixelOffset: new naver.maps.Point(0, -10)
         });
 
@@ -155,9 +146,7 @@
                 if (isOpen && currentAnchor === marker) {
                     infowindow.close();
                 } else {
-                    // 2. 닫혀있거나 다른 마커를 눌렀다면: 일단 닫고 새 정보로 열기
-                    infowindow.close(); 
-                    
+                    // 2. 다른 마커 클릭 시 혹은 새로 열 때 내용 구성
                     const categoryTag = loc.Category ? `<span class="iw-category">${loc.Category}</span>` : '';
                     var infoContent = `
                         <div class="iw-container">
