@@ -79,7 +79,8 @@
 
         function initMap() {
             map = new naver.maps.Map('map', {
-                center: new naver.maps.LatLng(37.5321, 127.0056),
+                // [수정됨] 용산구 정중앙(전쟁기념관 인근) 좌표로 변경
+                center: new naver.maps.LatLng(37.5365, 126.9780),
                 zoom: 14, logoControl: false, mapDataControl: false
             });
             
