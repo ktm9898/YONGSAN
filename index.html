@@ -19,7 +19,6 @@
             border-radius: 12px; 
             box-shadow: 0 4px 20px rgba(0,0,0,0.12);
             border: 1px solid #f0f0f0;
-            /* box-sizing: border-box를 제거하여 16번 캡처와 동일한 너비감 유지 */
         }
 
         /* 1단계: 리스트 보기 스타일 */
@@ -119,7 +118,6 @@
                 
                 document.getElementById('loading-screen').style.display = 'none';
 
-                // 데이터 좌표별 그룹화
                 allData.forEach(loc => {
                     if(!loc.Lat || !loc.Lng) return;
                     const key = `${parseFloat(loc.Lat).toFixed(6)},${parseFloat(loc.Lng).toFixed(6)}`;
@@ -128,12 +126,10 @@
                     locationsMap[loc.ID] = loc;
                 });
 
-                // 마커 생성
                 Object.keys(groupedData).forEach(key => {
                     createMarkerForGroup(key, groupedData[key]);
                 });
 
-                // 클러스터링 적용
                 markerClustering = new MarkerClustering({
                     minClusterSize: 2, maxZoom: 17, map: map, markers: markers,
                     gridSize: 80,
@@ -157,16 +153,23 @@
             };
         }
 
+        // 그룹 내 방문 여부를 판단하는 헬퍼 함수
+        function getGroupVisitStatus(stores) {
+            // 그룹 내에 방문하지 않은 점포가 하나라도 있는지 확인
+            const hasUnvisited = stores.some(s => String(s.IsVisited).toUpperCase() !== 'TRUE');
+            // 하나라도 미방문이면 false(빨강), 모두 방문했으면 true(초록) 반환
+            return !hasUnvisited;
+        }
+
         function createMarkerForGroup(key, stores) {
             const [lat, lng] = key.split(',').map(Number);
-            const representative = stores[0]; 
-            const isVisited = String(representative.IsVisited).toUpperCase() === 'TRUE';
+            const isAllVisited = getGroupVisitStatus(stores);
             
             const marker = new naver.maps.Marker({
                 position: new naver.maps.LatLng(lat, lng),
                 map: map,
                 icon: { 
-                    content: getIconHtml(isVisited, stores.length), 
+                    content: getIconHtml(isAllVisited, stores.length), 
                     anchor: new naver.maps.Point(16, 33) 
                 }
             });
@@ -249,7 +252,6 @@
 
         function getIconHtml(isVisited, count) {
             const color = isVisited ? VISITED_COLOR : DEFAULT_COLOR;
-            // 중복 마커 개수 배지: 흰색 배경에 검은색 글씨
             const badgeHtml = (count && count > 1) ? `
                 <circle cx="28" cy="8" r="7" fill="white" stroke="#333" stroke-width="1.5"/>
                 <text x="28" y="11" font-size="8" font-weight="900" text-anchor="middle" fill="#333" font-family="Pretendard">${count}</text>
@@ -273,8 +275,9 @@
 
             const marker = markers.find(m => m.get('coordKey') === key);
             if (marker) {
-                const count = groupedData[key].length;
-                marker.setIcon({ content: getIconHtml(nextStatus === true || nextStatus === 'TRUE', count), anchor: new naver.maps.Point(16, 33) });
+                const stores = groupedData[key];
+                const isAllVisitedNow = getGroupVisitStatus(stores);
+                marker.setIcon({ content: getIconHtml(isAllVisitedNow, stores.length), anchor: new naver.maps.Point(16, 33) });
             }
             
             showStoreDetail(id, key); 
