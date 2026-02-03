@@ -142,11 +142,12 @@
             const categoryContent = (loc.Category || '') + openDateStr;
             const categoryTag = categoryContent ? `<span class="iw-category">${categoryContent}</span>` : '';
             
-            // 2. 방문 버튼 텍스트 (방문함: 날짜표시, 방문안함: 방문완료)
+            // 2. 방문 버튼 텍스트 설정 (수정됨: '방문' 글자 제거)
             let visitBtnText = '방문완료';
             if (isVisited) {
                 if (loc.VisitDate) {
-                    visitBtnText = `${formatDate(loc.VisitDate)} 방문`;
+                    // 날짜만 표시 (예: 2026년 02월 03일)
+                    visitBtnText = `${formatDate(loc.VisitDate)}`;
                 } else {
                     visitBtnText = '방문취소';
                 }
@@ -198,9 +199,9 @@
             const now = new Date();
             const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-            // 로컬 상태 업데이트 (화면 즉시 반영)
+            // 로컬 상태 업데이트
             loc.IsVisited = nextStatus ? 'TRUE' : 'FALSE'; 
-            loc.VisitDate = nextStatus ? today : ""; // 방문완료시 오늘날짜, 취소시 빈값
+            loc.VisitDate = nextStatus ? today : "";
 
             const marker = markersMap[id];
             if (marker) {
@@ -214,7 +215,7 @@
             showToast("변경사항을 저장 중입니다...");
 
             try {
-                // 서버로 데이터 전송 (방문날짜 포함)
+                // 서버로 데이터 전송
                 await fetch(GOOGLE_SCRIPT_URL, { 
                     method: 'POST', 
                     body: JSON.stringify({ 
