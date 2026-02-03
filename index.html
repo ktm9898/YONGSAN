@@ -165,7 +165,10 @@
             const marker = new naver.maps.Marker({
                 position: new naver.maps.LatLng(lat, lng),
                 map: map,
-                icon: { content: getIconHtml(isVisited), anchor: new naver.maps.Point(12, 30) }
+                icon: { 
+                    content: getIconHtml(isVisited, stores.length), 
+                    anchor: new naver.maps.Point(16, 33) 
+                }
             });
 
             marker.set('coordKey', key);
@@ -230,7 +233,7 @@
                         <button onclick="updateStatus('${loc.ID}', ${!isVisited}, '${key}')" class="iw-btn ${isVisited ? 'btn-cancel' : 'btn-visit'}">
                             ${visitBtnText}
                         </button>
-                        <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버지도</a>
+                        <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버</a>
                     </div>
                 </div>`;
         }
@@ -244,12 +247,19 @@
             showStoreList(key, marker);
         };
 
-        function getIconHtml(isVisited) {
+        function getIconHtml(isVisited, count) {
             const color = isVisited ? VISITED_COLOR : DEFAULT_COLOR;
-            return `<div style="width:24px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
-                        <svg width="24" height="30" viewBox="0 0 32 40">
-                            <path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 24 16 24s16-12 16-24c0-8.8-7.2-16-16-16z" fill="${color}"/>
-                            <circle cx="16" cy="16" r="6" fill="white"/>
+            // 중복 마커 개수 배지: 흰색 배경에 검은색 글씨
+            const badgeHtml = (count && count > 1) ? `
+                <circle cx="28" cy="8" r="7" fill="white" stroke="#333" stroke-width="1.5"/>
+                <text x="28" y="11" font-size="8" font-weight="900" text-anchor="middle" fill="#333" font-family="Pretendard">${count}</text>
+            ` : '';
+
+            return `<div style="width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                        <svg width="36" height="36" viewBox="0 0 40 40">
+                            <path d="M16 8C10.5 8 6 12.5 6 18c0 7.5 10 15 10 15s10-7.5 10-15c0-5.5-4.5-10-10-10z" fill="${color}"/>
+                            <circle cx="16" cy="18" r="4" fill="white"/>
+                            ${badgeHtml}
                         </svg>
                     </div>`;
         }
@@ -262,7 +272,10 @@
             loc.VisitDate = nextStatus ? today : ""; 
 
             const marker = markers.find(m => m.get('coordKey') === key);
-            if (marker) marker.setIcon({ content: getIconHtml(nextStatus), anchor: new naver.maps.Point(12, 30) });
+            if (marker) {
+                const count = groupedData[key].length;
+                marker.setIcon({ content: getIconHtml(nextStatus === true || nextStatus === 'TRUE', count), anchor: new naver.maps.Point(16, 33) });
+            }
             
             showStoreDetail(id, key); 
             showToast("변경사항을 저장 중입니다...");
