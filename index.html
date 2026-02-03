@@ -4,24 +4,51 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>용산구 창업 점포 지도</title>
-    <!-- 네이버 지도 API (Key 유지) -->
+    <!-- 네이버 지도 API & 클러스터링 라이브러리 -->
     <script type="text/javascript" src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=u5mtazxcnw"></script>
+    <script type="text/javascript" src="https://navermaps.github.io/maps.js.ncp/docs/js/marker-clusterer.js"></script>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pretendard', sans-serif; background: #f8f9fa; }
-        #map { width: 100%; height: 100vh; }
-        
-        /* 정보창 디자인 (기존 유지) */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pretendard', sans-serif; background: #f8f9fa; overflow: hidden; }
+        #map { width: 100%; height: 100vh; position: relative; }
+
+        /* 정보창 디자인 (기존 요청하신 스타일로 완전 통일) */
         .iw-container { 
             padding: 12px; 
-            width: 220px;
+            width: 220px; 
             background: white; 
             border-radius: 12px; 
             box-shadow: 0 4px 20px rgba(0,0,0,0.12);
             border: 1px solid #f0f0f0;
+            /* box-sizing: border-box를 제거하여 16번 캡처와 동일한 너비감 유지 */
         }
-        .iw-title { font-size: 15px; font-weight: 700; color: #111; margin-bottom: 2px; display: block; }
+
+        /* 1단계: 리스트 보기 스타일 */
+        .iw-list-title { font-size: 13px; font-weight: 800; color: #666; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+        .iw-list-item { 
+            padding: 10px 5px; 
+            cursor: pointer; 
+            border-bottom: 1px solid #f9f9f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .iw-list-item:last-child { border-bottom: none; }
+        .iw-list-item:hover { background: #f0f7ff; }
+        .iw-list-item-name { font-size: 14px; font-weight: 600; color: #333; }
+        .iw-list-item-badge { font-size: 10px; padding: 2px 6px; border-radius: 10px; background: #eee; color: #888; }
+        .badge-visited { background: #e1f9f0; color: #10b981; }
+
+        /* 2단계: 상세 보기 스타일 (조밀한 간격 적용) */
+        .iw-header { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 0px; }
+        .btn-back { 
+            background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 4px; padding: 3px 7px; 
+            font-size: 9px; cursor: pointer; color: #4b5563; font-weight: 700;
+            white-space: nowrap;
+        }
+        .iw-title { font-size: 15px; font-weight: 700; color: #111; margin-bottom: 2px; display: block; line-height: 1.3; }
         .iw-category { font-size: 11px; color: #2563eb; font-weight: 600; margin-bottom: 4px; display: block; }
         .iw-address { font-size: 11px; color: #71717a; margin-bottom: 12px; line-height: 1.4; display: block; }
+        
         .iw-btn-group { display: flex; gap: 6px; }
         .iw-btn {
             flex: 1; text-align: center; color: white; padding: 7px 0;
@@ -34,16 +61,11 @@
         .btn-cancel { background-color: #f59e0b; } 
         .btn-naver { background-color: #03c75a; } 
 
-        /* 초기 로딩 화면 */
         #loading-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255,255,255,0.95); z-index: 10000;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 14px; font-weight: 600; color: #333;
-            transition: opacity 0.3s;
         }
-
-        /* 알림 메시지 */
         #toast {
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.7); color: white; padding: 10px 20px;
@@ -51,7 +73,6 @@
             opacity: 0; transition: opacity 0.3s; pointer-events: none;
         }
         #toast.show { opacity: 1; }
-
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
@@ -59,7 +80,7 @@
 
     <div id="loading-screen">
         <div style="width:32px; height:32px; border:3px solid #f3f3f3; border-top:3px solid #3b82f6; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:12px;"></div>
-        창업 점포 데이터를 불러오는 중...
+        <div id="loading-text" style="font-size:14px; font-weight:600;">창업 점포 데이터를 불러오는 중...</div>
     </div>
 
     <div id="toast">저장 중...</div>
@@ -70,47 +91,161 @@
         const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzS_CN-ZzcRiXvjyZjYS_cH2ohRo6akKRpMBC0aJAqgYnNb36__D85NP9L0S8QwY6yC/exec'; 
 
         var map;
+        var markerClustering;
         var infowindow = new naver.maps.InfoWindow({
             borderWidth: 0, backgroundColor: "transparent", disableAnchor: true, pixelOffset: new naver.maps.Point(0, -10)
         });
 
-        var markersMap = {}; 
+        var markers = []; 
         var locationsMap = {}; 
+        var groupedData = {}; 
+
+        const VISITED_COLOR = "#10b981";
+        const DEFAULT_COLOR = "#ef4444";
 
         function initMap() {
             map = new naver.maps.Map('map', {
-                center: new naver.maps.LatLng(37.5365, 126.9780), // 용산구 중심
+                center: new naver.maps.LatLng(37.5365, 126.9780), 
                 zoom: 14, logoControl: false, mapDataControl: false
             });
-            
-            naver.maps.Event.addListener(map, "click", function() {
-                infowindow.close();
-            });
-
+            naver.maps.Event.addListener(map, "click", () => infowindow.close());
             loadData();
         }
 
         async function loadData() {
             try {
                 const response = await fetch(GOOGLE_SCRIPT_URL);
-                const locations = await response.json();
+                const allData = await response.json();
                 
-                const loadingScreen = document.getElementById('loading-screen');
-                loadingScreen.style.opacity = '0';
-                setTimeout(() => loadingScreen.style.display = 'none', 300);
+                document.getElementById('loading-screen').style.display = 'none';
 
-                locations.forEach(loc => {
-                    if(loc.Lat && loc.Lng) {
-                        createMarker(loc);
-                    }
+                // 데이터 좌표별 그룹화
+                allData.forEach(loc => {
+                    if(!loc.Lat || !loc.Lng) return;
+                    const key = `${parseFloat(loc.Lat).toFixed(6)},${parseFloat(loc.Lng).toFixed(6)}`;
+                    if(!groupedData[key]) groupedData[key] = [];
+                    groupedData[key].push(loc);
+                    locationsMap[loc.ID] = loc;
+                });
+
+                // 마커 생성
+                Object.keys(groupedData).forEach(key => {
+                    createMarkerForGroup(key, groupedData[key]);
+                });
+
+                // 클러스터링 적용
+                markerClustering = new MarkerClustering({
+                    minClusterSize: 2, maxZoom: 17, map: map, markers: markers,
+                    gridSize: 80,
+                    icons: [
+                        makeClusterIcon(DEFAULT_COLOR),
+                        makeClusterIcon("#f97316"),
+                        makeClusterIcon("#ef4444"),
+                        makeClusterIcon("#991b1b")
+                    ],
+                    stylingFunction: (clusterHtml, count) => { clusterHtml.querySelector('div').innerText = count; }
                 });
             } catch (e) {
-                document.getElementById('loading-screen').innerText = "데이터 로드 실패";
+                document.getElementById('loading-text').innerText = "로드 실패: URL을 확인하세요.";
             }
         }
 
+        function makeClusterIcon(color) {
+            return {
+                content: `<div style="cursor:pointer;width:35px;height:35px;line-height:37px;font-size:11px;color:white;text-align:center;font-weight:bold;background:${color};border:2.5px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.2);"></div>`,
+                size: N.Size(35, 35), anchor: N.Point(17, 17)
+            };
+        }
+
+        function createMarkerForGroup(key, stores) {
+            const [lat, lng] = key.split(',').map(Number);
+            const representative = stores[0]; 
+            const isVisited = String(representative.IsVisited).toUpperCase() === 'TRUE';
+            
+            const marker = new naver.maps.Marker({
+                position: new naver.maps.LatLng(lat, lng),
+                map: map,
+                icon: { content: getIconHtml(isVisited), anchor: new naver.maps.Point(12, 30) }
+            });
+
+            marker.set('coordKey', key);
+            markers.push(marker);
+
+            naver.maps.Event.addListener(marker, "click", () => {
+                showStoreList(key, marker);
+            });
+        }
+
+        function showStoreList(key, marker) {
+            const stores = groupedData[key];
+            
+            if (stores.length === 1) {
+                infowindow.setContent(getStoreDetailHtml(stores[0].ID, key));
+                infowindow.open(map, marker);
+                return;
+            }
+
+            let listHtml = `<div class="iw-container">
+                <div class="iw-list-title">이 위치에 ${stores.length}개의 점포가 있습니다</div>`;
+            
+            stores.forEach(loc => {
+                const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
+                listHtml += `
+                    <div class="iw-list-item" onclick="showStoreDetail('${loc.ID}', '${key}')">
+                        <span class="iw-list-item-name">${loc.Name}</span>
+                        <span class="iw-list-item-badge ${isVisited ? 'badge-visited' : ''}">${isVisited ? '방문완료' : (loc.Category || '점포')}</span>
+                    </div>`;
+            });
+
+            listHtml += `</div>`;
+            infowindow.setContent(listHtml);
+            infowindow.open(map, marker);
+        }
+
+        function getStoreDetailHtml(id, key) {
+            const loc = locationsMap[id];
+            const stores = groupedData[key];
+            const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
+            
+            const formatDate = (ds) => { 
+                if (!ds) return "";
+                const d = new Date(ds); 
+                return isNaN(d.getTime()) ? ds : `${d.getFullYear()}년 ${String(d.getMonth() + 1).padStart(2, '0')}월 ${String(d.getDate()).padStart(2, '0')}일`;
+            };
+
+            const categoryContent = (loc.Category || '') + (loc.Date ? ` (개업: ${formatDate(loc.Date)})` : "");
+            let visitBtnText = isVisited ? (loc.VisitDate ? formatDate(loc.VisitDate) : '방문취소') : '방문완료';
+
+            const backBtn = (stores && stores.length > 1) ? `<button class="btn-back" onclick="showStoreListByKey('${key}')">← 목록</button>` : '';
+
+            return `
+                <div class="iw-container">
+                    <div class="iw-header">
+                        ${backBtn}
+                        <span class="iw-title">${loc.Name}</span>
+                    </div>
+                    <span class="iw-category">${categoryContent}</span>
+                    <span class="iw-address">${loc.Address || '주소 정보 없음'}</span>
+                    <div class="iw-btn-group">
+                        <button onclick="updateStatus('${loc.ID}', ${!isVisited}, '${key}')" class="iw-btn ${isVisited ? 'btn-cancel' : 'btn-visit'}">
+                            ${visitBtnText}
+                        </button>
+                        <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버</a>
+                    </div>
+                </div>`;
+        }
+
+        window.showStoreDetail = function(id, key) {
+            infowindow.setContent(getStoreDetailHtml(id, key));
+        };
+
+        window.showStoreListByKey = function(key) {
+            const marker = markers.find(m => m.get('coordKey') === key);
+            showStoreList(key, marker);
+        };
+
         function getIconHtml(isVisited) {
-            const color = isVisited ? '#10b981' : '#ef4444'; 
+            const color = isVisited ? VISITED_COLOR : DEFAULT_COLOR;
             return `<div style="width:24px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
                         <svg width="24" height="30" viewBox="0 0 32 40">
                             <path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 24 16 24s16-12 16-24c0-8.8-7.2-16-16-16z" fill="${color}"/>
@@ -119,124 +254,33 @@
                     </div>`;
         }
 
-        // 날짜 포맷팅 (YYYY-MM-DD -> YYYY년 MM월 DD일)
-        function formatDate(dateString) {
-            if (!dateString) return "";
-            const d = new Date(dateString);
-            if (isNaN(d.getTime())) return dateString; 
-            const year = d.getFullYear();
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${year}년 ${month}월 ${day}일`;
-        }
-
-        function getInfoWindowHtml(loc) {
-            const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
-            
-            // 1. 개업일자 표시
-            let openDateStr = "";
-            if (loc.Date) {
-                openDateStr = ` (개업: ${formatDate(loc.Date)})`;
-            }
-            const categoryContent = (loc.Category || '') + openDateStr;
-            const categoryTag = categoryContent ? `<span class="iw-category">${categoryContent}</span>` : '';
-            
-            // 2. 방문 버튼 텍스트 설정 (수정됨: '방문' 글자 제거)
-            let visitBtnText = '방문완료';
-            if (isVisited) {
-                if (loc.VisitDate) {
-                    // 날짜만 표시 (예: 2026년 02월 03일)
-                    visitBtnText = `${formatDate(loc.VisitDate)}`;
-                } else {
-                    visitBtnText = '방문취소';
-                }
-            }
-
-            return `
-                <div class="iw-container">
-                    <span class="iw-title">${loc.Name}</span>
-                    ${categoryTag}
-                    <span class="iw-address">${loc.Address || '주소 정보 없음'}</span>
-                    <div class="iw-btn-group">
-                        <button onclick="updateStatus('${loc.ID}', ${!isVisited})" class="iw-btn ${isVisited ? 'btn-cancel' : 'btn-visit'}">
-                            ${visitBtnText}
-                        </button>
-                        <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버지도</a>
-                    </div>
-                </div>`;
-        }
-
-        function createMarker(loc) {
-            locationsMap[loc.ID] = loc;
-            const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
-            
-            var marker = new naver.maps.Marker({
-                position: new naver.maps.LatLng(loc.Lat, loc.Lng),
-                map: map,
-                title: loc.Name,
-                clickable: true, 
-                icon: {
-                    content: getIconHtml(isVisited),
-                    anchor: new naver.maps.Point(12, 30)
-                }
-            });
-
-            markersMap[loc.ID] = marker;
-
-            naver.maps.Event.addListener(marker, "click", function(e) {
-                const currentLoc = locationsMap[loc.ID];
-                infowindow.setContent(getInfoWindowHtml(currentLoc));
-                infowindow.open(map, marker);
-            });
-        }
-
-        async function updateStatus(id, nextStatus) {
+        async function updateStatus(id, nextStatus, key) {
             const loc = locationsMap[id];
-            if (!loc) return;
-
-            // 오늘 날짜 생성 (YYYY-MM-DD)
             const now = new Date();
             const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-            // 로컬 상태 업데이트
             loc.IsVisited = nextStatus ? 'TRUE' : 'FALSE'; 
-            loc.VisitDate = nextStatus ? today : "";
+            loc.VisitDate = nextStatus ? today : ""; 
 
-            const marker = markersMap[id];
-            if (marker) {
-                marker.setIcon({
-                    content: getIconHtml(nextStatus),
-                    anchor: new naver.maps.Point(12, 30)
-                });
-            }
-
-            infowindow.setContent(getInfoWindowHtml(loc));
+            const marker = markers.find(m => m.get('coordKey') === key);
+            if (marker) marker.setIcon({ content: getIconHtml(nextStatus), anchor: new naver.maps.Point(12, 30) });
+            
+            showStoreDetail(id, key); 
             showToast("변경사항을 저장 중입니다...");
 
             try {
-                // 서버로 데이터 전송
                 await fetch(GOOGLE_SCRIPT_URL, { 
                     method: 'POST', 
-                    body: JSON.stringify({ 
-                        id: id, 
-                        isVisited: nextStatus,
-                        visitDate: loc.VisitDate 
-                    }) 
+                    body: JSON.stringify({ id: id, isVisited: nextStatus, visitDate: loc.VisitDate }) 
                 });
                 showToast("저장이 완료되었습니다!");
-            } catch (e) {
-                showToast("저장에 실패했습니다. 다시 시도해주세요.");
-                console.error(e);
-            }
+            } catch (e) { showToast("저장에 실패했습니다."); }
         }
 
         function showToast(message) {
             const toast = document.getElementById('toast');
             toast.innerText = message;
             toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 2000);
+            setTimeout(() => toast.classList.remove('show'), 2000);
         }
 
         window.onload = initMap;
