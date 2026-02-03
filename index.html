@@ -10,7 +10,7 @@
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pretendard', sans-serif; background: #f8f9fa; }
         #map { width: 100%; height: 100vh; }
         
-        /* 정보창 디자인 */
+        /* 정보창 디자인 (기존 유지) */
         .iw-container { 
             padding: 12px; 
             min-width: 170px; 
@@ -34,7 +34,7 @@
         .btn-cancel { background-color: #f59e0b; } 
         .btn-naver { background-color: #03c75a; } 
 
-        /* 초기 로딩 화면 (전체 화면 덮음) */
+        /* 초기 로딩 화면 */
         #loading-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255,255,255,0.95); z-index: 10000;
@@ -43,7 +43,7 @@
             transition: opacity 0.3s;
         }
 
-        /* 데이터 저장 중 알림 (토스트 메시지) */
+        /* 알림 메시지 */
         #toast {
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
             background: rgba(0,0,0,0.7); color: white; padding: 10px 20px;
@@ -57,13 +57,11 @@
 </head>
 <body>
 
-    <!-- 초기 데이터 로딩용 화면 -->
     <div id="loading-screen">
         <div style="width:32px; height:32px; border:3px solid #f3f3f3; border-top:3px solid #3b82f6; border-radius:50%; animation:spin 1s linear infinite; margin-bottom:12px;"></div>
         창업 점포 데이터를 불러오는 중...
     </div>
 
-    <!-- 저장 상태 알림용 토스트 -->
     <div id="toast">저장 중...</div>
 
     <div id="map"></div>
@@ -76,9 +74,8 @@
             borderWidth: 0, backgroundColor: "transparent", disableAnchor: true, pixelOffset: new naver.maps.Point(0, -10)
         });
 
-        // 로컬 데이터 관리용 (새로고침 없이 즉시 업데이트하기 위함)
-        var markersMap = {}; // ID -> Marker 객체
-        var locationsMap = {}; // ID -> 데이터 객체
+        var markersMap = {}; 
+        var locationsMap = {}; 
 
         function initMap() {
             map = new naver.maps.Map('map', {
@@ -98,7 +95,6 @@
                 const response = await fetch(GOOGLE_SCRIPT_URL);
                 const locations = await response.json();
                 
-                // 로딩 화면 숨기기
                 const loadingScreen = document.getElementById('loading-screen');
                 loadingScreen.style.opacity = '0';
                 setTimeout(() => loadingScreen.style.display = 'none', 300);
@@ -113,9 +109,8 @@
             }
         }
 
-        // 아이콘 HTML 생성 도우미 함수
         function getIconHtml(isVisited) {
-            const color = isVisited ? '#10b981' : '#ef4444'; // 초록 vs 빨강
+            const color = isVisited ? '#10b981' : '#ef4444'; 
             return `<div style="width:24px;height:30px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
                         <svg width="24" height="30" viewBox="0 0 32 40">
                             <path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 24 16 24s16-12 16-24c0-8.8-7.2-16-16-16z" fill="${color}"/>
@@ -124,10 +119,27 @@
                     </div>`;
         }
 
-        // 정보창 HTML 생성 도우미 함수
+        // 정보창 HTML 생성 (개업일자 추가됨)
         function getInfoWindowHtml(loc) {
             const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
-            const categoryTag = loc.Category ? `<span class="iw-category">${loc.Category}</span>` : '';
+            
+            // 개업일자 포맷팅 로직 추가
+            let dateStr = "";
+            if (loc.Date) {
+                const d = new Date(loc.Date);
+                if (!isNaN(d.getTime())) {
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    dateStr = ` (개업: ${year}년 ${month}월 ${day}일)`;
+                } else {
+                    dateStr = ` (개업: ${loc.Date})`; // 날짜 형식이 특이할 경우 그대로 표시
+                }
+            }
+
+            // 업종 + 개업일자 결합
+            const categoryContent = (loc.Category || '') + dateStr;
+            const categoryTag = categoryContent ? `<span class="iw-category">${categoryContent}</span>` : '';
             
             return `
                 <div class="iw-container">
@@ -144,9 +156,7 @@
         }
 
         function createMarker(loc) {
-            // 데이터 맵에 저장
             locationsMap[loc.ID] = loc;
-
             const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
             
             var marker = new naver.maps.Marker({
@@ -160,26 +170,21 @@
                 }
             });
 
-            // 마커 맵에 저장 (나중에 업데이트할 때 찾기 위함)
             markersMap[loc.ID] = marker;
 
             naver.maps.Event.addListener(marker, "click", function(e) {
-                // 클릭 시점의 최신 데이터로 정보창 내용 생성
                 const currentLoc = locationsMap[loc.ID];
                 infowindow.setContent(getInfoWindowHtml(currentLoc));
                 infowindow.open(map, marker);
             });
         }
 
-        // 상태 업데이트 (Optimistic UI 적용: 화면 먼저 변경 -> 서버 전송)
         async function updateStatus(id, nextStatus) {
             const loc = locationsMap[id];
             if (!loc) return;
 
-            // 1. 화면 즉시 변경 (사용자 대기 시간 0초)
-            loc.IsVisited = nextStatus ? 'TRUE' : 'FALSE'; // 로컬 데이터 업데이트
+            loc.IsVisited = nextStatus ? 'TRUE' : 'FALSE'; 
             
-            // 마커 아이콘 색상 변경
             const marker = markersMap[id];
             if (marker) {
                 marker.setIcon({
@@ -188,10 +193,7 @@
                 });
             }
 
-            // 열려있는 정보창 내용 갱신 (버튼 상태 변경)
             infowindow.setContent(getInfoWindowHtml(loc));
-
-            // 2. 백그라운드 서버 전송 및 알림 표시
             showToast("변경사항을 저장 중입니다...");
 
             try {
@@ -202,7 +204,6 @@
                 showToast("저장이 완료되었습니다!");
             } catch (e) {
                 showToast("저장에 실패했습니다. 다시 시도해주세요.");
-                // 실패 시 원래대로 되돌리는 로직이 필요하다면 여기에 추가
                 console.error(e);
             }
         }
@@ -211,8 +212,6 @@
             const toast = document.getElementById('toast');
             toast.innerText = message;
             toast.classList.add('show');
-            
-            // 2초 후 사라짐 (기존 타이머가 있다면 취소할 수도 있지만 단순화함)
             setTimeout(() => {
                 toast.classList.remove('show');
             }, 2000);
