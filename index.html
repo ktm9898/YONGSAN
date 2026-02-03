@@ -13,7 +13,7 @@
         /* 정보창 디자인 (기존 유지) */
         .iw-container { 
             padding: 12px; 
-            min-width: 170px; 
+            min-width: 180px; 
             max-width: 220px;
             background: white; 
             border-radius: 12px; 
@@ -28,6 +28,7 @@
             flex: 1; text-align: center; color: white; padding: 7px 0;
             text-decoration: none; font-size: 10.5px; border-radius: 6px;
             font-weight: 600; cursor: pointer; border: none; transition: opacity 0.2s;
+            white-space: nowrap; /* 날짜가 길어져도 줄바꿈 방지 */
         }
         .iw-btn:active { opacity: 0.8; }
         .btn-visit { background-color: #3b82f6; } 
@@ -79,7 +80,7 @@
 
         function initMap() {
             map = new naver.maps.Map('map', {
-                // [수정됨] 용산구 정중앙(전쟁기념관 인근) 좌표로 변경
+                // 용산구 정중앙(전쟁기념관 인근) 좌표
                 center: new naver.maps.LatLng(37.5365, 126.9780),
                 zoom: 14, logoControl: false, mapDataControl: false
             });
@@ -120,28 +121,38 @@
                     </div>`;
         }
 
-        // 정보창 HTML 생성 (개업일자 추가됨)
+        // 날짜 포맷팅 함수 (YYYY년 MM월 DD일)
+        function formatDate(dateString) {
+            if (!dateString) return "";
+            const d = new Date(dateString);
+            if (isNaN(d.getTime())) return dateString; // 날짜 형식이 아니면 그대로 표시
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}년 ${month}월 ${day}일`;
+        }
+
         function getInfoWindowHtml(loc) {
             const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
             
-            // 개업일자 포맷팅 로직 추가
-            let dateStr = "";
+            // 1. 개업일자 표시 (상단 정보)
+            let openDateStr = "";
             if (loc.Date) {
-                const d = new Date(loc.Date);
-                if (!isNaN(d.getTime())) {
-                    const year = d.getFullYear();
-                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                    const day = String(d.getDate()).padStart(2, '0');
-                    dateStr = ` (개업: ${year}년 ${month}월 ${day}일)`;
+                openDateStr = ` (개업: ${formatDate(loc.Date)})`;
+            }
+            const categoryContent = (loc.Category || '') + openDateStr;
+            const categoryTag = categoryContent ? `<span class="iw-category">${categoryContent}</span>` : '';
+            
+            // 2. 방문 버튼 텍스트 설정 (I열 VisitDate 활용)
+            let visitBtnText = '방문완료';
+            if (isVisited) {
+                if (loc.VisitDate) {
+                    visitBtnText = `${formatDate(loc.VisitDate)} 방문`;
                 } else {
-                    dateStr = ` (개업: ${loc.Date})`; // 날짜 형식이 특이할 경우 그대로 표시
+                    visitBtnText = '방문취소'; // 날짜가 없으면 기존처럼 표시
                 }
             }
 
-            // 업종 + 개업일자 결합
-            const categoryContent = (loc.Category || '') + dateStr;
-            const categoryTag = categoryContent ? `<span class="iw-category">${categoryContent}</span>` : '';
-            
             return `
                 <div class="iw-container">
                     <span class="iw-title">${loc.Name}</span>
@@ -149,7 +160,7 @@
                     <span class="iw-address">${loc.Address || '주소 정보 없음'}</span>
                     <div class="iw-btn-group">
                         <button onclick="updateStatus('${loc.ID}', ${!isVisited})" class="iw-btn ${isVisited ? 'btn-cancel' : 'btn-visit'}">
-                            ${isVisited ? '방문취소' : '방문완료'}
+                            ${visitBtnText}
                         </button>
                         <a href="https://map.naver.com/v5/search/${encodeURIComponent(loc.Name)}" target="_blank" class="iw-btn btn-naver">네이버지도</a>
                     </div>
@@ -184,7 +195,13 @@
             const loc = locationsMap[id];
             if (!loc) return;
 
+            // 상태 업데이트 (화면상 즉시 반영)
             loc.IsVisited = nextStatus ? 'TRUE' : 'FALSE'; 
+            
+            // 버튼을 눌러 상태를 바꿀 때 날짜 처리 로직
+            // 방문 완료를 누르면 -> 오늘 날짜가 임시로 보이면 좋겠지만, 
+            // 시트에 저장된게 없으므로 일단 '방문취소'로 뜹니다. 
+            // (새로고침 후 시트에 날짜가 있다면 그 날짜로 뜹니다)
             
             const marker = markersMap[id];
             if (marker) {
@@ -198,6 +215,8 @@
             showToast("변경사항을 저장 중입니다...");
 
             try {
+                // 구글 시트에 저장 (주의: 날짜는 여기서 저장되지 않고 방문 여부만 저장됨)
+                // 날짜는 시트에서 직접 입력해야 합니다.
                 await fetch(GOOGLE_SCRIPT_URL, { 
                     method: 'POST', 
                     body: JSON.stringify({ id: id, isVisited: nextStatus }) 
