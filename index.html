@@ -28,7 +28,7 @@
             flex: 1; text-align: center; color: white; padding: 7px 0;
             text-decoration: none; font-size: 10.5px; border-radius: 6px;
             font-weight: 600; cursor: pointer; border: none; transition: opacity 0.2s;
-            white-space: nowrap; /* 날짜가 길어져도 줄바꿈 방지 */
+            white-space: nowrap;
         }
         .iw-btn:active { opacity: 0.8; }
         .btn-visit { background-color: #3b82f6; } 
@@ -80,8 +80,7 @@
 
         function initMap() {
             map = new naver.maps.Map('map', {
-                // 용산구 정중앙(전쟁기념관 인근) 좌표
-                center: new naver.maps.LatLng(37.5365, 126.9780),
+                center: new naver.maps.LatLng(37.5365, 126.9780), // 용산구 중심
                 zoom: 14, logoControl: false, mapDataControl: false
             });
             
@@ -121,11 +120,11 @@
                     </div>`;
         }
 
-        // 날짜 포맷팅 함수 (YYYY년 MM월 DD일)
+        // 날짜 포맷팅 (YYYY-MM-DD -> YYYY년 MM월 DD일)
         function formatDate(dateString) {
             if (!dateString) return "";
             const d = new Date(dateString);
-            if (isNaN(d.getTime())) return dateString; // 날짜 형식이 아니면 그대로 표시
+            if (isNaN(d.getTime())) return dateString; 
             const year = d.getFullYear();
             const month = String(d.getMonth() + 1).padStart(2, '0');
             const day = String(d.getDate()).padStart(2, '0');
@@ -135,7 +134,7 @@
         function getInfoWindowHtml(loc) {
             const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
             
-            // 1. 개업일자 표시 (상단 정보)
+            // 1. 개업일자 표시
             let openDateStr = "";
             if (loc.Date) {
                 openDateStr = ` (개업: ${formatDate(loc.Date)})`;
@@ -143,13 +142,13 @@
             const categoryContent = (loc.Category || '') + openDateStr;
             const categoryTag = categoryContent ? `<span class="iw-category">${categoryContent}</span>` : '';
             
-            // 2. 방문 버튼 텍스트 설정 (I열 VisitDate 활용)
+            // 2. 방문 버튼 텍스트 (방문함: 날짜표시, 방문안함: 방문완료)
             let visitBtnText = '방문완료';
             if (isVisited) {
                 if (loc.VisitDate) {
                     visitBtnText = `${formatDate(loc.VisitDate)} 방문`;
                 } else {
-                    visitBtnText = '방문취소'; // 날짜가 없으면 기존처럼 표시
+                    visitBtnText = '방문취소';
                 }
             }
 
@@ -195,14 +194,14 @@
             const loc = locationsMap[id];
             if (!loc) return;
 
-            // 상태 업데이트 (화면상 즉시 반영)
+            // 오늘 날짜 생성 (YYYY-MM-DD)
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+            // 로컬 상태 업데이트 (화면 즉시 반영)
             loc.IsVisited = nextStatus ? 'TRUE' : 'FALSE'; 
-            
-            // 버튼을 눌러 상태를 바꿀 때 날짜 처리 로직
-            // 방문 완료를 누르면 -> 오늘 날짜가 임시로 보이면 좋겠지만, 
-            // 시트에 저장된게 없으므로 일단 '방문취소'로 뜹니다. 
-            // (새로고침 후 시트에 날짜가 있다면 그 날짜로 뜹니다)
-            
+            loc.VisitDate = nextStatus ? today : ""; // 방문완료시 오늘날짜, 취소시 빈값
+
             const marker = markersMap[id];
             if (marker) {
                 marker.setIcon({
@@ -215,11 +214,14 @@
             showToast("변경사항을 저장 중입니다...");
 
             try {
-                // 구글 시트에 저장 (주의: 날짜는 여기서 저장되지 않고 방문 여부만 저장됨)
-                // 날짜는 시트에서 직접 입력해야 합니다.
+                // 서버로 데이터 전송 (방문날짜 포함)
                 await fetch(GOOGLE_SCRIPT_URL, { 
                     method: 'POST', 
-                    body: JSON.stringify({ id: id, isVisited: nextStatus }) 
+                    body: JSON.stringify({ 
+                        id: id, 
+                        isVisited: nextStatus,
+                        visitDate: loc.VisitDate 
+                    }) 
                 });
                 showToast("저장이 완료되었습니다!");
             } catch (e) {
