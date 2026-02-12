@@ -446,14 +446,14 @@
             const loc = locationsMap[id];
             const stores = groupedData[key];
             const isVisited = String(loc.IsVisited).toUpperCase() === 'TRUE';
-            const year = getYear(loc.Date);
-            const categoryContent = (loc.Category || '') + (year ? ` (${year})` : "");
-
             const formatDate = (ds) => {
                 if (!ds) return "";
                 const d = new Date(ds);
                 return isNaN(d.getTime()) ? ds : `${d.getFullYear()}년 ${String(d.getMonth() + 1).padStart(2, '0')}월 ${String(d.getDate()).padStart(2, '0')}일`;
             };
+            const year = getYear(loc.Date);
+            const categoryContent = (loc.Category || '') + (loc.Date ? ` (개업: ${formatDate(loc.Date)})` : "");
+
             let visitBtnText = isVisited ? (loc.VisitDate ? formatDate(loc.VisitDate) : '방문취소') : '방문완료';
 
             const backBtn = (stores && stores.length > 1) ? `<button class="btn-back" onclick="showStoreListByKey('${key}')">← 목록</button>` : '';
