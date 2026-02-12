@@ -452,7 +452,7 @@
                 return isNaN(d.getTime()) ? ds : `${d.getFullYear()}년 ${String(d.getMonth() + 1).padStart(2, '0')}월 ${String(d.getDate()).padStart(2, '0')}일`;
             };
             const year = getYear(loc.Date);
-            const categoryContent = (loc.Category || '') + (loc.Date ? ` (개업: ${formatDate(loc.Date)})` : "");
+            const categoryContent = (loc.Category || '') + (loc.Date ? ` (개업: ${formatDate(loc.Date).split(' ').slice(0, 2).join(' ')})` : "");
 
             let visitBtnText = isVisited ? (loc.VisitDate ? formatDate(loc.VisitDate) : '방문취소') : '방문완료';
 
